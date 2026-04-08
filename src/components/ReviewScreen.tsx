@@ -27,9 +27,9 @@ export function ReviewScreen({ result, onBack }: ReviewScreenProps) {
           {mistakes.map((item) => (
             <article className="panel review-item" key={`${result.id}-${item.questionId}`}>
               <div className="question-meta">
-                <span>問{item.order}</span>
+                <span>{item.examSession}</span>
+                <span>問{item.questionNumber}</span>
                 <span>{item.category}</span>
-                <span>{item.questionId}</span>
               </div>
               <p className="question-text">{item.question}</p>
               {item.questionImage && (

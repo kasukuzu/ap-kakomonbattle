@@ -1,11 +1,11 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { HistoryScreen } from "./components/HistoryScreen";
 import { QuizScreen } from "./components/QuizScreen";
 import { ResultScreen } from "./components/ResultScreen";
 import { ReviewScreen } from "./components/ReviewScreen";
 import { SetupScreen } from "./components/SetupScreen";
 import { TopScreen } from "./components/TopScreen";
-import { questions } from "./questionData";
+import { filterQuestions, orderQuestions, questions } from "./questionData";
 import { saveHistory } from "./storage";
 import type { BattleResult, BattleSettings, PlayerKey, Question } from "./types";
 
@@ -17,6 +17,8 @@ const defaultSettings: BattleSettings = {
   player1Name: "プレイヤー1",
   player2Name: "プレイヤー2",
   questionCount: 10,
+  year: "令和6",
+  season: "秋",
   category: "すべて",
   questionOrder: "random",
 };
@@ -58,6 +60,10 @@ function createBattleResult(
     return {
       questionId: question.id,
       order: index + 1,
+      year: question.year,
+      season: question.season,
+      examSession: question.examSession,
+      questionNumber: question.questionNumber,
       category: question.category,
       question: question.question,
       questionImage: question.questionImage,
@@ -104,25 +110,11 @@ function App() {
   const [quizQuestions, setQuizQuestions] = useState<Question[]>([]);
   const [latestResult, setLatestResult] = useState<BattleResult | null>(null);
 
-  const categoryCounts = useMemo(() => {
-    return questions.reduce<Record<string, number>>(
-      (counts, question) => {
-        counts["すべて"] += 1;
-        counts[question.category] = (counts[question.category] ?? 0) + 1;
-        return counts;
-      },
-      { すべて: 0 },
-    );
-  }, []);
-
   const startBattle = (nextSettings: BattleSettings) => {
-    const filtered =
-      nextSettings.category === "すべて"
-        ? questions
-        : questions.filter((question) => question.category === nextSettings.category);
+    const filtered = filterQuestions(questions, nextSettings);
     const safeQuestionCount = Math.min(nextSettings.questionCount, filtered.length);
     const orderedQuestions =
-      nextSettings.questionOrder === "random" ? shuffleQuestions(filtered) : filtered;
+      nextSettings.questionOrder === "random" ? shuffleQuestions(filtered) : orderQuestions(filtered);
     const selected = orderedQuestions.slice(0, safeQuestionCount);
     setSettings({ ...nextSettings, questionCount: safeQuestionCount });
     setQuizQuestions(selected);
@@ -159,7 +151,6 @@ function App() {
         )}
         {screen === "setup" && (
           <SetupScreen
-            categoryCounts={categoryCounts}
             defaultSettings={settings}
             onBack={() => setScreen("top")}
             onStart={startBattle}

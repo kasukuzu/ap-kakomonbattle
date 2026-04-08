@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { formatFilterLabel } from "../questionData";
 import { clearHistory, loadHistory } from "../storage";
 
 type HistoryScreenProps = {
@@ -37,7 +38,8 @@ export function HistoryScreen({ onBack }: HistoryScreenProps) {
                   <p className="history-date">{new Date(item.playedAt).toLocaleString("ja-JP")}</p>
                   <h2>{winnerText}</h2>
                   <p>
-                    {item.settings.category} / {item.questionIds.length}問
+                    {formatFilterLabel(item.settings.year)} / {formatFilterLabel(item.settings.season)} /{" "}
+                    {formatFilterLabel(item.settings.category)} / {item.questionIds.length}問
                   </p>
                   <p>復習対象: {mistakeCount}問</p>
                 </div>
@@ -55,7 +57,10 @@ export function HistoryScreen({ onBack }: HistoryScreenProps) {
                     <div className="history-answer-list">
                       {item.questionResults.map((question) => (
                         <div className="history-answer-row" key={`${item.id}-${question.questionId}`}>
-                          <strong>問{question.order}</strong>
+                          <strong>
+                            {question.examSession ?? "過去データ"} 問
+                            {question.questionNumber ?? question.order}
+                          </strong>
                           <span>正解: {question.correctAnswerLabel}</span>
                           <span>
                             {item.player1.name}: {question.player1.selectedLabel}

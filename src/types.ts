@@ -1,10 +1,15 @@
 export type Category = "テクノロジ" | "マネジメント" | "ストラテジ";
+export type ExamYear = "令和6" | "令和5" | "令和4";
+export type ExamTerm = "春" | "秋";
+export type FilterOption<T extends string> = T | "すべて";
 
 export type Question = {
   id: string;
-  season: string;
-  exam: string;
+  year: ExamYear;
+  season: ExamTerm;
+  examSession: string;
   section: string;
+  questionNumber: number;
   category: Category;
   question: string;
   questionImage?: string;
@@ -21,7 +26,9 @@ export type BattleSettings = {
   player1Name: string;
   player2Name: string;
   questionCount: number;
-  category: Category | "すべて";
+  year: FilterOption<ExamYear>;
+  season: FilterOption<ExamTerm>;
+  category: FilterOption<Category>;
   questionOrder: "random" | "inOrder";
 };
 
@@ -42,6 +49,10 @@ export type PlayerQuestionAnswer = {
 export type QuestionResult = {
   questionId: string;
   order: number;
+  year: ExamYear;
+  season: ExamTerm;
+  examSession: string;
+  questionNumber: number;
   category: Category;
   question: string;
   questionImage?: string;

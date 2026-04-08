@@ -103,8 +103,8 @@ export function QuizScreen({ settings, questions, onCancel, onFinish }: QuizScre
       <article className="panel question-panel">
         <div className="question-meta">
           <span>{question.category}</span>
-          <span>{question.season}</span>
-          <span>{question.id}</span>
+          <span>{question.examSession}</span>
+          <span>問{question.questionNumber}</span>
         </div>
         <p className="question-text">{question.question}</p>
         {question.questionImage && (

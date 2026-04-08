@@ -22,6 +22,8 @@ function normalizeResult(result: BattleResult): BattleResult {
     questionResults: Array.isArray(result.questionResults) ? result.questionResults : [],
     settings: {
       ...result.settings,
+      year: result.settings.year ?? "すべて",
+      season: result.settings.season ?? "すべて",
       questionOrder: result.settings.questionOrder ?? "random",
     },
   };

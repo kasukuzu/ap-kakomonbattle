@@ -187,6 +187,22 @@ p {
   font-weight: 700;
 }
 
+.form-message {
+  border: 1px solid #d7dee7;
+  border-radius: 8px;
+  background: #f5f7fa;
+  color: #4d5b6a;
+  line-height: 1.7;
+  margin-bottom: 0;
+  padding: 12px 14px;
+}
+
+.error-message {
+  border-color: #efb6b6;
+  background: #fff7f7;
+  color: #8c1d1d;
+}
+
 .quiz-screen {
   display: grid;
   gap: 20px;
@@ -502,7 +518,7 @@ p {
 
 .history-answer-row {
   display: grid;
-  grid-template-columns: auto auto 1fr 1fr;
+  grid-template-columns: minmax(160px, auto) auto 1fr 1fr;
   gap: 10px;
   border-radius: 8px;
   background: #f5f7fa;
