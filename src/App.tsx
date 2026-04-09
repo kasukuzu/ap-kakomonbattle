@@ -1,17 +1,53 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import {
+  buildAnswerMapFromOnlineRoom,
+  createBattleResult,
+  selectQuestions,
+} from "./battle";
 import { HistoryScreen } from "./components/HistoryScreen";
+import { OnlineCreateRoomScreen } from "./components/OnlineCreateRoomScreen";
+import { OnlineJoinRoomScreen } from "./components/OnlineJoinRoomScreen";
+import { OnlineMenuScreen } from "./components/OnlineMenuScreen";
+import { OnlineQuizScreen } from "./components/OnlineQuizScreen";
+import { OnlineRoomScreen } from "./components/OnlineRoomScreen";
 import { QuizScreen } from "./components/QuizScreen";
 import { ResultScreen } from "./components/ResultScreen";
 import { ReviewScreen } from "./components/ReviewScreen";
 import { SetupScreen } from "./components/SetupScreen";
 import { TopScreen } from "./components/TopScreen";
-import { filterQuestions, orderQuestions, questions } from "./questionData";
+import { getQuestionsByIds, questions } from "./questionData";
+import { getOnlineFeatureStatus } from "./lib/firebase";
+import {
+  advanceOnlineQuestion,
+  createOnlineRoom,
+  finishOnlineRoom,
+  leaveOnlineRoom,
+  joinOnlineRoom,
+  startOnlineRoom,
+  submitOnlineAnswer,
+  subscribeToOnlineRoom,
+} from "./onlineRoom";
 import { saveHistory } from "./storage";
-import type { BattleResult, BattleSettings, PlayerKey, Question } from "./types";
+import type {
+  BattleResult,
+  BattleSettings,
+  OnlineRoom,
+  OnlineSession,
+  PlayerKey,
+  Question,
+} from "./types";
 
-type Screen = "top" | "setup" | "quiz" | "result" | "review" | "history";
-type AnswerMap = Record<PlayerKey, number[]>;
-const answerLabels = ["ア", "イ", "ウ", "エ"];
+type Screen =
+  | "top"
+  | "setup"
+  | "quiz"
+  | "result"
+  | "review"
+  | "history"
+  | "onlineMenu"
+  | "onlineCreate"
+  | "onlineJoin"
+  | "onlineRoom";
 
 const defaultSettings: BattleSettings = {
   player1Name: "プレイヤー1",
@@ -23,123 +59,260 @@ const defaultSettings: BattleSettings = {
   questionOrder: "random",
 };
 
-function shuffleQuestions(source: Question[]): Question[] {
-  const items = [...source];
-  for (let i = items.length - 1; i > 0; i -= 1) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [items[i], items[j]] = [items[j], items[i]];
-  }
-  return items;
-}
-
-function createBattleResult(
-  settings: BattleSettings,
-  quizQuestions: Question[],
-  answers: AnswerMap,
-): BattleResult {
-  const countCorrect = (player: PlayerKey) =>
-    quizQuestions.reduce((total, question, index) => {
-      return total + (answers[player][index] === question.answer ? 1 : 0);
-    }, 0);
-
-  const player1Correct = countCorrect("player1");
-  const player2Correct = countCorrect("player2");
-  const questionCount = quizQuestions.length || 1;
-  const questionResults = quizQuestions.map((question, index) => {
-    const createPlayerAnswer = (player: PlayerKey) => {
-      const selectedIndex = answers[player][index] ?? -1;
-      return {
-        selectedIndex,
-        selectedLabel: answerLabels[selectedIndex] ?? "-",
-        selectedText: question.choices[selectedIndex] ?? "未回答",
-        selectedImage: question.choiceImages?.[selectedIndex] ?? null,
-        isCorrect: selectedIndex === question.answer,
-      };
-    };
-
-    return {
-      questionId: question.id,
-      order: index + 1,
-      year: question.year,
-      season: question.season,
-      examSession: question.examSession,
-      questionNumber: question.questionNumber,
-      category: question.category,
-      question: question.question,
-      questionImage: question.questionImage,
-      choices: question.choices,
-      choiceImages: question.choiceImages,
-      correctAnswer: question.answer,
-      correctAnswerLabel: question.answerLabel,
-      correctAnswerText: question.choices[question.answer] ?? "",
-      correctAnswerImage: question.choiceImages?.[question.answer] ?? null,
-      player1: createPlayerAnswer("player1"),
-      player2: createPlayerAnswer("player2"),
-    };
-  });
-  const winner =
-    player1Correct === player2Correct
-      ? "draw"
-      : player1Correct > player2Correct
-        ? "player1"
-        : "player2";
-
-  return {
-    id: `${Date.now()}-${crypto.randomUUID?.() ?? Math.random().toString(36).slice(2)}`,
-    playedAt: new Date().toISOString(),
-    settings,
-    questionIds: quizQuestions.map((question) => question.id),
-    questionResults,
-    player1: {
-      name: settings.player1Name,
-      correctCount: player1Correct,
-      accuracy: Math.round((player1Correct / questionCount) * 100),
-    },
-    player2: {
-      name: settings.player2Name,
-      correctCount: player2Correct,
-      accuracy: Math.round((player2Correct / questionCount) * 100),
-    },
-    winner,
-  };
+function getErrorMessage(error: unknown) {
+  return error instanceof Error ? error.message : "エラーが発生しました。";
 }
 
 function App() {
   const [screen, setScreen] = useState<Screen>("top");
   const [settings, setSettings] = useState<BattleSettings>(defaultSettings);
   const [quizQuestions, setQuizQuestions] = useState<Question[]>([]);
+  const [localStartedAt, setLocalStartedAt] = useState<number | null>(null);
   const [latestResult, setLatestResult] = useState<BattleResult | null>(null);
+  const [reviewReturnScreen, setReviewReturnScreen] = useState<"result" | "onlineRoom">("result");
+  const [onlineSession, setOnlineSession] = useState<OnlineSession | null>(null);
+  const [onlineRoom, setOnlineRoom] = useState<OnlineRoom | null>(null);
+  const [onlineLoading, setOnlineLoading] = useState(false);
+  const [onlineError, setOnlineError] = useState("");
+  const [onlineActionError, setOnlineActionError] = useState("");
+  const [onlineBusy, setOnlineBusy] = useState(false);
+  const [savedOnlineResultId, setSavedOnlineResultId] = useState<string | null>(null);
+  const onlineFeature = getOnlineFeatureStatus();
+
+  useEffect(() => {
+    if (!onlineSession) {
+      setOnlineRoom(null);
+      setOnlineLoading(false);
+      setOnlineError("");
+      return;
+    }
+
+    setOnlineLoading(true);
+    const unsubscribe = subscribeToOnlineRoom(
+      onlineSession.roomCode,
+      (room) => {
+        setOnlineRoom(room);
+        setOnlineLoading(false);
+        setOnlineError(room ? "" : "ルームが見つかりません。");
+      },
+      (message) => {
+        setOnlineError(message);
+        setOnlineLoading(false);
+      },
+    );
+
+    return () => {
+      unsubscribe();
+    };
+  }, [onlineSession]);
+
+  useEffect(() => {
+    if (!onlineRoom?.result) {
+      return;
+    }
+
+    setLatestResult(onlineRoom.result);
+    if (savedOnlineResultId === onlineRoom.result.id) {
+      return;
+    }
+
+    saveHistory(onlineRoom.result);
+    setSavedOnlineResultId(onlineRoom.result.id);
+  }, [onlineRoom?.result, savedOnlineResultId]);
+
+  const onlineQuestions = useMemo(() => {
+    return getQuestionsByIds(onlineRoom?.questionIds ?? []);
+  }, [onlineRoom?.questionIds]);
+
+  const handleNavigate = (nextScreen: Screen) => {
+    if (onlineSession && nextScreen !== "onlineRoom") {
+      leaveOnlineFlow(nextScreen);
+      return;
+    }
+
+    setScreen(nextScreen);
+  };
+
+  const leaveOnlineFlow = (nextScreen: Screen) => {
+    void leaveOnlineRoom(onlineSession);
+    setOnlineSession(null);
+    setOnlineRoom(null);
+    setOnlineLoading(false);
+    setOnlineError("");
+    setOnlineActionError("");
+    setOnlineBusy(false);
+    setSavedOnlineResultId(null);
+    setScreen(nextScreen);
+  };
 
   const startBattle = (nextSettings: BattleSettings) => {
-    const filtered = filterQuestions(questions, nextSettings);
-    const safeQuestionCount = Math.min(nextSettings.questionCount, filtered.length);
-    const orderedQuestions =
-      nextSettings.questionOrder === "random" ? shuffleQuestions(filtered) : orderQuestions(filtered);
-    const selected = orderedQuestions.slice(0, safeQuestionCount);
-    setSettings({ ...nextSettings, questionCount: safeQuestionCount });
+    const selected = selectQuestions(questions, nextSettings);
+    const safeSettings = { ...nextSettings, questionCount: selected.length };
+    setSettings(safeSettings);
     setQuizQuestions(selected);
+    setLocalStartedAt(Date.now());
     setLatestResult(null);
     setScreen("quiz");
   };
 
-  const finishBattle = (answers: AnswerMap) => {
-    const result = createBattleResult(settings, quizQuestions, answers);
+  const finishBattle = (answers: Record<PlayerKey, number[]>) => {
+    const result = createBattleResult(settings, quizQuestions, answers, {
+      mode: "local",
+      startedAt: localStartedAt,
+      finishedAt: Date.now(),
+    });
     saveHistory(result);
     setLatestResult(result);
     setScreen("result");
   };
 
+  const handleCreateOnlineRoom = async ({
+    playerName,
+    settings: nextSettings,
+  }: {
+    playerName: string;
+    settings: BattleSettings;
+  }) => {
+    setOnlineBusy(true);
+    setOnlineActionError("");
+
+    try {
+      const session = await createOnlineRoom(playerName, nextSettings);
+      setSettings(nextSettings);
+      setLatestResult(null);
+      setSavedOnlineResultId(null);
+      setOnlineSession(session);
+      setScreen("onlineRoom");
+    } catch (error) {
+      setOnlineActionError(getErrorMessage(error));
+    } finally {
+      setOnlineBusy(false);
+    }
+  };
+
+  const handleJoinOnlineRoom = async ({
+    playerName,
+    roomCode,
+  }: {
+    playerName: string;
+    roomCode: string;
+  }) => {
+    setOnlineBusy(true);
+    setOnlineActionError("");
+
+    try {
+      const session = await joinOnlineRoom(roomCode, playerName);
+      setLatestResult(null);
+      setSavedOnlineResultId(null);
+      setOnlineSession(session);
+      setScreen("onlineRoom");
+    } catch (error) {
+      setOnlineActionError(getErrorMessage(error));
+    } finally {
+      setOnlineBusy(false);
+    }
+  };
+
+  const handleStartOnlineBattle = async () => {
+    if (!onlineRoom) {
+      return;
+    }
+
+    setOnlineBusy(true);
+    setOnlineActionError("");
+
+    try {
+      const selectedQuestions = selectQuestions(questions, onlineRoom.settings);
+      if (selectedQuestions.length === 0) {
+        throw new Error("選択した条件に一致する問題がありません。");
+      }
+
+      const nextSettings = {
+        ...onlineRoom.settings,
+        questionCount: selectedQuestions.length,
+      };
+      await startOnlineRoom(onlineRoom.roomCode, nextSettings, selectedQuestions.map((question) => question.id));
+    } catch (error) {
+      setOnlineActionError(getErrorMessage(error));
+    } finally {
+      setOnlineBusy(false);
+    }
+  };
+
+  const handleSubmitOnlineAnswer = async (selectedIndex: number) => {
+    if (!onlineSession || !onlineRoom) {
+      return;
+    }
+
+    const currentQuestion = onlineQuestions[onlineRoom.currentQuestionIndex];
+    if (!currentQuestion) {
+      return;
+    }
+
+    setOnlineBusy(true);
+    setOnlineActionError("");
+
+    try {
+      await submitOnlineAnswer(onlineSession, currentQuestion.id, selectedIndex);
+    } catch (error) {
+      setOnlineActionError(getErrorMessage(error));
+    } finally {
+      setOnlineBusy(false);
+    }
+  };
+
+  const handleAdvanceOnlineBattle = async () => {
+    if (!onlineRoom) {
+      return;
+    }
+
+    setOnlineBusy(true);
+    setOnlineActionError("");
+
+    try {
+      if (onlineRoom.currentQuestionIndex >= onlineQuestions.length - 1) {
+        const result = createBattleResult(
+          onlineRoom.settings,
+          onlineQuestions,
+          buildAnswerMapFromOnlineRoom(onlineQuestions, onlineRoom),
+          {
+            mode: "online",
+            roomCode: onlineRoom.roomCode,
+            startedAt: onlineRoom.startedAt,
+            finishedAt: Date.now(),
+          },
+        );
+        await finishOnlineRoom(onlineRoom.roomCode, result);
+      } else {
+        await advanceOnlineQuestion(onlineRoom.roomCode, onlineRoom.currentQuestionIndex + 1);
+      }
+    } catch (error) {
+      setOnlineActionError(getErrorMessage(error));
+    } finally {
+      setOnlineBusy(false);
+    }
+  };
+
+  const openReview = (source: "result" | "onlineRoom", result: BattleResult) => {
+    setLatestResult(result);
+    setReviewReturnScreen(source);
+    setScreen("review");
+  };
+
   return (
     <div className="app">
       <header className="app-header">
-        <button className="brand-button" type="button" onClick={() => setScreen("top")}>
+        <button className="brand-button" type="button" onClick={() => handleNavigate("top")}>
           応用情報 過去問バトル
         </button>
         <nav className="header-actions" aria-label="画面切り替え">
-          <button type="button" onClick={() => setScreen("setup")}>
-            対戦設定
+          <button type="button" onClick={() => handleNavigate("setup")}>
+            ローカル対戦
           </button>
-          <button type="button" onClick={() => setScreen("history")}>
+          <button type="button" onClick={() => handleNavigate("onlineMenu")}>
+            オンライン対戦
+          </button>
+          <button type="button" onClick={() => handleNavigate("history")}>
             履歴
           </button>
         </nav>
@@ -147,7 +320,11 @@ function App() {
 
       <main>
         {screen === "top" && (
-          <TopScreen onStart={() => setScreen("setup")} onHistory={() => setScreen("history")} />
+          <TopScreen
+            onHistory={() => handleNavigate("history")}
+            onLocalStart={() => handleNavigate("setup")}
+            onOnlineStart={() => handleNavigate("onlineMenu")}
+          />
         )}
         {screen === "setup" && (
           <SetupScreen
@@ -160,6 +337,7 @@ function App() {
           <QuizScreen
             questions={quizQuestions}
             settings={settings}
+            startedAt={localStartedAt}
             onCancel={() => setScreen("setup")}
             onFinish={finishBattle}
           />
@@ -169,14 +347,78 @@ function App() {
             result={latestResult}
             onHistory={() => setScreen("history")}
             onRestart={() => setScreen("setup")}
-            onReviewMistakes={() => setScreen("review")}
+            onReviewMistakes={() => openReview("result", latestResult)}
             onTop={() => setScreen("top")}
           />
         )}
         {screen === "review" && latestResult && (
-          <ReviewScreen result={latestResult} onBack={() => setScreen("result")} />
+          <ReviewScreen result={latestResult} onBack={() => setScreen(reviewReturnScreen)} />
         )}
         {screen === "history" && <HistoryScreen onBack={() => setScreen("top")} />}
+        {screen === "onlineMenu" && (
+          <OnlineMenuScreen
+            onBack={() => setScreen("top")}
+            onCreateRoom={() => setScreen("onlineCreate")}
+            onJoinRoom={() => setScreen("onlineJoin")}
+          />
+        )}
+        {screen === "onlineCreate" && (
+          <OnlineCreateRoomScreen
+            availabilityMessage={onlineFeature.message}
+            defaultPlayerName={settings.player1Name}
+            defaultSettings={settings}
+            errorMessage={onlineActionError}
+            isSubmitting={onlineBusy}
+            onBack={() => setScreen("onlineMenu")}
+            onCreate={handleCreateOnlineRoom}
+          />
+        )}
+        {screen === "onlineJoin" && (
+          <OnlineJoinRoomScreen
+            availabilityMessage={onlineFeature.message}
+            defaultPlayerName={settings.player2Name}
+            errorMessage={onlineActionError}
+            isSubmitting={onlineBusy}
+            onBack={() => setScreen("onlineMenu")}
+            onJoin={handleJoinOnlineRoom}
+          />
+        )}
+        {screen === "onlineRoom" && onlineSession && (
+          <>
+            {onlineRoom?.status === "playing" ? (
+              <OnlineQuizScreen
+                actionError={onlineActionError}
+                isSubmitting={onlineBusy}
+                questions={onlineQuestions}
+                room={onlineRoom}
+                session={onlineSession}
+                onAdvance={handleAdvanceOnlineBattle}
+                onLeave={() => leaveOnlineFlow("onlineMenu")}
+                onSubmitAnswer={handleSubmitOnlineAnswer}
+              />
+            ) : onlineRoom?.status === "finished" && onlineRoom.result ? (
+              <ResultScreen
+                restartLabel="オンライン対戦へ戻る"
+                result={onlineRoom.result}
+                onHistory={() => leaveOnlineFlow("history")}
+                onRestart={() => leaveOnlineFlow("onlineMenu")}
+                onReviewMistakes={() => openReview("onlineRoom", onlineRoom.result!)}
+                onTop={() => leaveOnlineFlow("top")}
+              />
+            ) : (
+              <OnlineRoomScreen
+                actionError={onlineActionError}
+                errorMessage={onlineError}
+                isLoading={onlineLoading}
+                isStarting={onlineBusy}
+                room={onlineRoom}
+                session={onlineSession}
+                onBack={() => leaveOnlineFlow("onlineMenu")}
+                onStart={handleStartOnlineBattle}
+              />
+            )}
+          </>
+        )}
       </main>
     </div>
   );

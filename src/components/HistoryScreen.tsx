@@ -1,3 +1,4 @@
+import { formatElapsedTime } from "../battle";
 import { useState } from "react";
 import { formatFilterLabel } from "../questionData";
 import { clearHistory, loadHistory } from "../storage";
@@ -40,6 +41,11 @@ export function HistoryScreen({ onBack }: HistoryScreenProps) {
                   <p>
                     {formatFilterLabel(item.settings.year)} / {formatFilterLabel(item.settings.season)} /{" "}
                     {formatFilterLabel(item.settings.category)} / {item.questionIds.length}問
+                  </p>
+                  <p>
+                    {item.mode === "online" ? "オンライン対戦" : "ローカル対戦"} / 経過時間{" "}
+                    {formatElapsedTime(item.elapsedMs)}
+                    {item.roomCode ? ` / ルーム ${item.roomCode}` : ""}
                   </p>
                   <p>復習対象: {mistakeCount}問</p>
                 </div>

@@ -2,6 +2,7 @@ import rawQuestions from "../data/questions.json";
 import type { BattleSettings, ExamTerm, ExamYear, Question } from "./types";
 
 export const questions = rawQuestions as Question[];
+const questionMap = new Map(questions.map((question) => [question.id, question]));
 
 export const categories = ["すべて", "テクノロジ", "マネジメント", "ストラテジ"] as const;
 export const yearOptions = ["すべて", "令和6", "令和5", "令和4"] as const;
@@ -39,4 +40,10 @@ export function orderQuestions(source: Question[]): Question[] {
 
 export function formatFilterLabel(value: string): string {
   return value === "すべて" ? "全て" : value;
+}
+
+export function getQuestionsByIds(ids: string[]): Question[] {
+  return ids
+    .map((id) => questionMap.get(id))
+    .filter((question): question is Question => Boolean(question));
 }

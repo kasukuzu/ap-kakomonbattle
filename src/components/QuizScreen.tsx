@@ -1,9 +1,14 @@
 import { useMemo, useState } from "react";
+import { countCorrectAnswers } from "../battle";
+import { useElapsedTime } from "../hooks/useElapsedTime";
 import type { BattleSettings, PlayerKey, Question } from "../types";
+import { ChoiceList } from "./ChoiceList";
+import { QuestionCard } from "./QuestionCard";
 
 type QuizScreenProps = {
   settings: BattleSettings;
   questions: Question[];
+  startedAt: number | null;
   onCancel: () => void;
   onFinish: (answers: Record<PlayerKey, number[]>) => void;
 };
@@ -13,9 +18,9 @@ type CurrentSelections = Record<PlayerKey, number | null>;
 const emptySelections: CurrentSelections = {
   player1: null,
   player2: null,
-};
+} as const;
 
-export function QuizScreen({ settings, questions, onCancel, onFinish }: QuizScreenProps) {
+export function QuizScreen({ settings, questions, startedAt, onCancel, onFinish }: QuizScreenProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [selections, setSelections] = useState<CurrentSelections>(emptySelections);
   const [isChecked, setIsChecked] = useState(false);
@@ -27,11 +32,12 @@ export function QuizScreen({ settings, questions, onCancel, onFinish }: QuizScre
   const question = questions[currentIndex];
   const progressText = `${currentIndex + 1} / ${questions.length}`;
   const bothSelected = selections.player1 !== null && selections.player2 !== null;
+  const { formattedElapsed } = useElapsedTime(startedAt);
 
   const playerScores = useMemo(() => {
     return {
-      player1: answers.player1.filter((answer, index) => answer === questions[index]?.answer).length,
-      player2: answers.player2.filter((answer, index) => answer === questions[index]?.answer).length,
+      player1: countCorrectAnswers(questions, answers, "player1"),
+      player2: countCorrectAnswers(questions, answers, "player2"),
     };
   }, [answers, questions]);
 
@@ -91,6 +97,7 @@ export function QuizScreen({ settings, questions, onCancel, onFinish }: QuizScre
           <h1>{progressText}</h1>
         </div>
         <div className="score-mini">
+          <span>経過 {formattedElapsed}</span>
           <span>
             {settings.player1Name}: {playerScores.player1}
           </span>
@@ -100,40 +107,22 @@ export function QuizScreen({ settings, questions, onCancel, onFinish }: QuizScre
         </div>
       </div>
 
-      <article className="panel question-panel">
-        <div className="question-meta">
-          <span>{question.category}</span>
-          <span>{question.examSession}</span>
-          <span>問{question.questionNumber}</span>
-        </div>
-        <p className="question-text">{question.question}</p>
-        {question.questionImage && (
-          <img
-            className="question-image"
-            src={question.questionImage}
-            alt={`${question.id} の問題画像`}
-          />
-        )}
-      </article>
+      <QuestionCard question={question} />
 
       <div className="players-grid">
         <PlayerAnswerBox
-          answerIndex={question.answer}
-          choiceImages={question.choiceImages}
-          choices={question.choices}
           isChecked={isChecked}
           name={settings.player1Name}
           player="player1"
+          question={question}
           selected={selections.player1}
           onChoose={chooseAnswer}
         />
         <PlayerAnswerBox
-          answerIndex={question.answer}
-          choiceImages={question.choiceImages}
-          choices={question.choices}
           isChecked={isChecked}
           name={settings.player2Name}
           player="player2"
+          question={question}
           selected={selections.player2}
           onChoose={chooseAnswer}
         />
@@ -167,10 +156,8 @@ export function QuizScreen({ settings, questions, onCancel, onFinish }: QuizScre
 type PlayerAnswerBoxProps = {
   name: string;
   player: PlayerKey;
-  choices: string[];
-  choiceImages?: Array<string | null>;
+  question: Question;
   selected: number | null;
-  answerIndex: number;
   isChecked: boolean;
   onChoose: (player: PlayerKey, choiceIndex: number) => void;
 };
@@ -178,15 +165,12 @@ type PlayerAnswerBoxProps = {
 function PlayerAnswerBox({
   name,
   player,
-  choices,
-  choiceImages,
+  question,
   selected,
-  answerIndex,
   isChecked,
   onChoose,
 }: PlayerAnswerBoxProps) {
-  const labels = ["ア", "イ", "ウ", "エ"];
-  const isCorrect = selected === answerIndex;
+  const isCorrect = selected === question.answer;
 
   return (
     <section className="panel player-panel">
@@ -198,35 +182,15 @@ function PlayerAnswerBox({
           </span>
         )}
       </div>
-      <div className="choice-list">
-        {choices.map((choice, index) => {
-          const selectedClass = selected === index ? " selected" : "";
-          const correctClass = isChecked && answerIndex === index ? " correct-choice" : "";
-          const wrongClass =
-            isChecked && selected === index && selected !== answerIndex ? " wrong-choice" : "";
-
-          return (
-            <button
-              className={`choice-button${selectedClass}${correctClass}${wrongClass}`}
-              key={`${player}-${index}`}
-              type="button"
-              onClick={() => onChoose(player, index)}
-            >
-              <span className="choice-label">{labels[index]}</span>
-              <span className="choice-content">
-                <span>{choice}</span>
-                {choiceImages?.[index] && (
-                  <img
-                    className="choice-image"
-                    src={choiceImages[index]}
-                    alt={`${labels[index]} の選択肢画像`}
-                  />
-                )}
-              </span>
-            </button>
-          );
-        })}
-      </div>
+      <ChoiceList
+        answerIndex={question.answer}
+        choiceImages={question.choiceImages}
+        choices={question.choices}
+        disabled={isChecked}
+        revealAnswer={isChecked}
+        selectedIndex={selected}
+        onSelect={(choiceIndex) => onChoose(player, choiceIndex)}
+      />
     </section>
   );
 }

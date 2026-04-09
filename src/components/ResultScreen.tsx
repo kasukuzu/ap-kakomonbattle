@@ -1,3 +1,4 @@
+import { formatElapsedTime } from "../battle";
 import type { BattleResult } from "../types";
 import { formatFilterLabel } from "../questionData";
 
@@ -7,6 +8,7 @@ type ResultScreenProps = {
   onReviewMistakes: () => void;
   onHistory: () => void;
   onTop: () => void;
+  restartLabel?: string;
 };
 
 export function ResultScreen({
@@ -15,6 +17,7 @@ export function ResultScreen({
   onReviewMistakes,
   onHistory,
   onTop,
+  restartLabel = "もう一度",
 }: ResultScreenProps) {
   const questionCount = result.questionIds.length;
   const mistakeCount = result.questionResults.filter(
@@ -50,12 +53,15 @@ export function ResultScreen({
       </div>
 
       <div className="panel result-summary">
+        <span>形式: {result.mode === "online" ? "オンライン対戦" : "ローカル対戦"}</span>
         <span>年度: {formatFilterLabel(result.settings.year)}</span>
         <span>期: {formatFilterLabel(result.settings.season)}</span>
         <span>分野: {formatFilterLabel(result.settings.category)}</span>
         <span>出題数: {questionCount}問</span>
         <span>出題順: {result.settings.questionOrder === "random" ? "ランダム" : "問題番号順"}</span>
         <span>復習対象: {mistakeCount}問</span>
+        {result.roomCode && <span>ルームコード: {result.roomCode}</span>}
+        <span>経過時間: {formatElapsedTime(result.elapsedMs)}</span>
         <span>保存日時: {new Date(result.playedAt).toLocaleString("ja-JP")}</span>
       </div>
 
@@ -64,7 +70,7 @@ export function ResultScreen({
           間違えた問題だけ復習
         </button>
         <button className="primary-button" type="button" onClick={onRestart}>
-          もう一度
+          {restartLabel}
         </button>
         <button type="button" onClick={onHistory}>
           履歴へ

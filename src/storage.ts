@@ -19,6 +19,11 @@ export function loadHistory(): BattleResult[] {
 function normalizeResult(result: BattleResult): BattleResult {
   return {
     ...result,
+    mode: result.mode ?? "local",
+    roomCode: result.roomCode,
+    startedAt: typeof result.startedAt === "number" ? result.startedAt : null,
+    finishedAt: typeof result.finishedAt === "number" ? result.finishedAt : null,
+    elapsedMs: typeof result.elapsedMs === "number" ? result.elapsedMs : 0,
     questionResults: Array.isArray(result.questionResults) ? result.questionResults : [],
     settings: {
       ...result.settings,
