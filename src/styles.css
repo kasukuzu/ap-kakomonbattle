@@ -56,8 +56,8 @@ select {
 button {
   border: 1px solid rgba(74, 111, 166, 0.24);
   border-radius: 8px;
-  background: linear-gradient(180deg, #ffffff, #f4f8ff);
-  color: var(--text);
+  background: #2f67c8;
+  color: #ffffff;
   cursor: pointer;
   min-height: 48px;
   padding: 12px 18px;
@@ -70,12 +70,15 @@ button {
 }
 
 button:hover:not(:disabled) {
-  border-color: rgba(47, 103, 200, 0.4);
-  box-shadow: 0 14px 28px rgba(34, 70, 122, 0.14);
+  border-color: #255ab2;
+  background: #255ab2;
+  box-shadow: 0 14px 28px rgba(34, 70, 122, 0.16);
   transform: translateY(-2px);
 }
 
 button:active:not(:disabled) {
+  border-color: #1f4f98;
+  background: #1f4f98;
   transform: translateY(0) scale(0.98);
   box-shadow: 0 8px 16px rgba(34, 70, 122, 0.12);
 }
@@ -252,15 +255,7 @@ p {
 }
 
 .primary-button {
-  border-color: rgba(31, 79, 152, 0.5);
-  background: linear-gradient(180deg, #3270d9, #255ab2);
-  color: #ffffff;
   font-weight: 800;
-  box-shadow: 0 12px 24px rgba(37, 90, 178, 0.24);
-}
-
-.primary-button:hover:not(:disabled) {
-  background: linear-gradient(180deg, #2f69cc, #214e98);
 }
 
 .section-heading {
