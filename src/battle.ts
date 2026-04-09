@@ -99,6 +99,7 @@ export function createBattleResult(
       category: question.category,
       question: question.question,
       questionImage: question.questionImage,
+      answerAreaImage: question.answerAreaImage,
       choices: question.choices,
       choiceImages: question.choiceImages,
       correctAnswer: question.answer,

@@ -1,4 +1,5 @@
 import type { BattleResult, PlayerQuestionAnswer } from "../types";
+import { QuestionAssets } from "./QuestionAssets";
 
 type ReviewScreenProps = {
   result: BattleResult;
@@ -32,13 +33,11 @@ export function ReviewScreen({ result, onBack }: ReviewScreenProps) {
                 <span>{item.category}</span>
               </div>
               <p className="question-text">{item.question}</p>
-              {item.questionImage && (
-                <img
-                  className="question-image"
-                  src={item.questionImage}
-                  alt={`${item.questionId} の問題画像`}
-                />
-              )}
+              <QuestionAssets
+                answerAreaImage={item.answerAreaImage}
+                questionId={item.questionId}
+                questionImage={item.questionImage}
+              />
               <div className="review-answer-block">
                 <strong>正解: {item.correctAnswerLabel}</strong>
                 <span>{item.correctAnswerText}</span>

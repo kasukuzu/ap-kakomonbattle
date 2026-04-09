@@ -1,4 +1,5 @@
 import type { Question } from "../types";
+import { QuestionAssets } from "./QuestionAssets";
 
 type QuestionCardProps = {
   question: Question;
@@ -13,13 +14,11 @@ export function QuestionCard({ question }: QuestionCardProps) {
         <span>問{question.questionNumber}</span>
       </div>
       <p className="question-text">{question.question}</p>
-      {question.questionImage && (
-        <img
-          className="question-image"
-          src={question.questionImage}
-          alt={`${question.id} の問題画像`}
-        />
-      )}
+      <QuestionAssets
+        answerAreaImage={question.answerAreaImage}
+        questionId={question.id}
+        questionImage={question.questionImage}
+      />
     </article>
   );
 }

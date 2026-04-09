@@ -15,6 +15,7 @@ export type Question = {
   category: Category;
   question: string;
   questionImage?: string;
+  answerAreaImage?: string;
   choices: string[];
   choiceImages?: Array<string | null>;
   answer: number;
@@ -58,6 +59,7 @@ export type QuestionResult = {
   category: Category;
   question: string;
   questionImage?: string;
+  answerAreaImage?: string;
   choices: string[];
   choiceImages?: Array<string | null>;
   correctAnswer: number;

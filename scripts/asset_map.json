@@ -1,0 +1,39 @@
+{
+  "pdfs": {
+    "r6-autumn-questions": "data/raw/r6-autumn-questions.pdf",
+    "r6-spring-questions": "data/raw/r6-spring-questions.pdf",
+    "r5-autumn-questions": "data/raw/r5-autumn-questions.pdf",
+    "r5-spring-questions": "data/raw/r5-spring-questions.pdf",
+    "r4-autumn-questions": "data/raw/r4-autumn-questions.pdf",
+    "r4-spring-questions": "data/raw/r4-spring-questions.pdf"
+  },
+  "assets": {
+    "r6-autumn-am-5": {
+      "pdf": "r6-autumn-questions",
+      "page": 5,
+      "scale": 2.0,
+      "questionImage": {
+        "crop": [100, 275, 500, 565]
+      }
+    },
+    "r6-autumn-am-21": {
+      "pdf": "r6-autumn-questions",
+      "page": 12,
+      "scale": 2.0,
+      "questionImage": {
+        "crop": [90, 150, 505, 340]
+      },
+      "answerAreaImage": {
+        "crop": [60, 330, 530, 760]
+      }
+    },
+    "r6-autumn-am-29": {
+      "pdf": "r6-autumn-questions",
+      "page": 16,
+      "scale": 2.0,
+      "questionImage": {
+        "crop": [60, 85, 505, 265]
+      }
+    }
+  }
+}
