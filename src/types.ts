@@ -92,6 +92,9 @@ export type OnlineRoomPlayer = {
   connected: boolean;
   joinedAt: number;
   lastSeenAt?: number | null;
+  currentQuestionIndex: number;
+  answeredCount: number;
+  finished: boolean;
 };
 
 export type OnlineRoomAnswer = {
@@ -108,8 +111,7 @@ export type OnlineRoom = {
   settings: BattleSettings;
   players: Partial<Record<PlayerKey, OnlineRoomPlayer>>;
   questionIds: string[];
-  currentQuestionIndex: number;
-  answers: Record<string, Partial<Record<PlayerKey, OnlineRoomAnswer>>>;
+  answers: Record<PlayerKey, Record<string, OnlineRoomAnswer>>;
   result?: BattleResult | null;
 };
 

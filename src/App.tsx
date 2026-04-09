@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   buildAnswerMapFromOnlineRoom,
   createBattleResult,
@@ -77,6 +77,7 @@ function App() {
   const [onlineActionError, setOnlineActionError] = useState("");
   const [onlineBusy, setOnlineBusy] = useState(false);
   const [savedOnlineResultId, setSavedOnlineResultId] = useState<string | null>(null);
+  const finalizingRoomCodeRef = useRef<string | null>(null);
   const onlineFeature = getOnlineFeatureStatus();
 
   useEffect(() => {
@@ -108,6 +109,7 @@ function App() {
 
   useEffect(() => {
     if (!onlineRoom?.result) {
+      finalizingRoomCodeRef.current = null;
       return;
     }
 
@@ -123,6 +125,40 @@ function App() {
   const onlineQuestions = useMemo(() => {
     return getQuestionsByIds(onlineRoom?.questionIds ?? []);
   }, [onlineRoom?.questionIds]);
+
+  useEffect(() => {
+    if (!onlineRoom || onlineRoom.status !== "playing" || onlineRoom.result || onlineQuestions.length === 0) {
+      return;
+    }
+
+    const player1Finished = onlineRoom.players.player1?.finished === true;
+    const player2Finished = onlineRoom.players.player2?.finished === true;
+    if (!player1Finished || !player2Finished) {
+      return;
+    }
+
+    if (finalizingRoomCodeRef.current === onlineRoom.roomCode) {
+      return;
+    }
+
+    finalizingRoomCodeRef.current = onlineRoom.roomCode;
+    const result = createBattleResult(
+      onlineRoom.settings,
+      onlineQuestions,
+      buildAnswerMapFromOnlineRoom(onlineQuestions, onlineRoom),
+      {
+        mode: "online",
+        roomCode: onlineRoom.roomCode,
+        startedAt: onlineRoom.startedAt,
+        finishedAt: Date.now(),
+      },
+    );
+
+    void finishOnlineRoom(onlineRoom.roomCode, result).catch((error) => {
+      finalizingRoomCodeRef.current = null;
+      setOnlineActionError(getErrorMessage(error));
+    });
+  }, [onlineQuestions, onlineRoom]);
 
   const handleNavigate = (nextScreen: Screen) => {
     if (onlineSession && nextScreen !== "onlineRoom") {
@@ -244,8 +280,11 @@ function App() {
       return;
     }
 
-    const currentQuestion = onlineQuestions[onlineRoom.currentQuestionIndex];
-    if (!currentQuestion) {
+    const currentPlayer = onlineRoom.players[onlineSession.playerKey];
+    const currentQuestion = currentPlayer
+      ? onlineQuestions[currentPlayer.currentQuestionIndex]
+      : null;
+    if (!currentPlayer || !currentQuestion) {
       return;
     }
 
@@ -253,7 +292,12 @@ function App() {
     setOnlineActionError("");
 
     try {
-      await submitOnlineAnswer(onlineSession, currentQuestion.id, selectedIndex);
+      await submitOnlineAnswer(
+        onlineSession,
+        currentQuestion.id,
+        selectedIndex,
+        Math.max(currentPlayer.answeredCount, currentPlayer.currentQuestionIndex + 1),
+      );
     } catch (error) {
       setOnlineActionError(getErrorMessage(error));
     } finally {
@@ -262,7 +306,12 @@ function App() {
   };
 
   const handleAdvanceOnlineBattle = async () => {
-    if (!onlineRoom) {
+    if (!onlineRoom || !onlineSession) {
+      return;
+    }
+
+    const currentPlayer = onlineRoom.players[onlineSession.playerKey];
+    if (!currentPlayer || currentPlayer.finished) {
       return;
     }
 
@@ -270,22 +319,12 @@ function App() {
     setOnlineActionError("");
 
     try {
-      if (onlineRoom.currentQuestionIndex >= onlineQuestions.length - 1) {
-        const result = createBattleResult(
-          onlineRoom.settings,
-          onlineQuestions,
-          buildAnswerMapFromOnlineRoom(onlineQuestions, onlineRoom),
-          {
-            mode: "online",
-            roomCode: onlineRoom.roomCode,
-            startedAt: onlineRoom.startedAt,
-            finishedAt: Date.now(),
-          },
-        );
-        await finishOnlineRoom(onlineRoom.roomCode, result);
-      } else {
-        await advanceOnlineQuestion(onlineRoom.roomCode, onlineRoom.currentQuestionIndex + 1);
-      }
+      const isLastQuestion = currentPlayer.currentQuestionIndex >= onlineQuestions.length - 1;
+      await advanceOnlineQuestion(
+        onlineSession,
+        isLastQuestion ? onlineQuestions.length : currentPlayer.currentQuestionIndex + 1,
+        isLastQuestion,
+      );
     } catch (error) {
       setOnlineActionError(getErrorMessage(error));
     } finally {

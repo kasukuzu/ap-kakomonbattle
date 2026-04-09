@@ -44,8 +44,8 @@ export function buildAnswerMapFromOnlineRoom(
   room: OnlineRoom,
 ): AnswerMap {
   return {
-    player1: quizQuestions.map((question) => room.answers[question.id]?.player1?.selectedIndex ?? -1),
-    player2: quizQuestions.map((question) => room.answers[question.id]?.player2?.selectedIndex ?? -1),
+    player1: quizQuestions.map((question) => room.answers.player1?.[question.id]?.selectedIndex ?? -1),
+    player2: quizQuestions.map((question) => room.answers.player2?.[question.id]?.selectedIndex ?? -1),
   };
 }
 

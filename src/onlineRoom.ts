@@ -40,6 +40,15 @@ function normalizeSettings(value: unknown): BattleSettings {
 }
 
 function normalizePlayer(value: unknown): OnlineRoomPlayer | undefined {
+  return normalizePlayerState(value, 0, 0, 0);
+}
+
+function normalizePlayerState(
+  value: unknown,
+  fallbackIndex: number,
+  fallbackAnsweredCount: number,
+  questionCount: number,
+): OnlineRoomPlayer | undefined {
   if (!value || typeof value !== "object") {
     return undefined;
   }
@@ -55,44 +64,84 @@ function normalizePlayer(value: unknown): OnlineRoomPlayer | undefined {
     connected: player.connected !== false,
     joinedAt: typeof player.joinedAt === "number" ? player.joinedAt : Date.now(),
     lastSeenAt: typeof player.lastSeenAt === "number" ? player.lastSeenAt : null,
+    currentQuestionIndex:
+      typeof player.currentQuestionIndex === "number" ? player.currentQuestionIndex : fallbackIndex,
+    answeredCount:
+      typeof player.answeredCount === "number" ? player.answeredCount : fallbackAnsweredCount,
+    finished:
+      typeof player.finished === "boolean"
+        ? player.finished
+        : fallbackAnsweredCount >= questionCount && questionCount > 0,
   };
 }
 
 function normalizeAnswers(value: unknown): OnlineRoom["answers"] {
+  const emptyAnswers: OnlineRoom["answers"] = {
+    player1: {},
+    player2: {},
+  };
+
   if (!value || typeof value !== "object") {
-    return {};
+    return emptyAnswers;
   }
 
-  return Object.entries(value as Record<string, unknown>).reduce<OnlineRoom["answers"]>(
-    (result, [questionId, players]) => {
-      if (!players || typeof players !== "object") {
+  const rawAnswers = value as Record<string, unknown>;
+
+  const parseAnswer = (answer: unknown) => {
+    if (!answer || typeof answer !== "object") {
+      return undefined;
+    }
+
+    const parsedAnswer = answer as Partial<OnlineRoomAnswer>;
+    if (typeof parsedAnswer.selectedIndex !== "number") {
+      return undefined;
+    }
+
+    return {
+      selectedIndex: parsedAnswer.selectedIndex,
+      answeredAt: typeof parsedAnswer.answeredAt === "number" ? parsedAnswer.answeredAt : Date.now(),
+    };
+  };
+
+  if ("player1" in rawAnswers || "player2" in rawAnswers) {
+    return (["player1", "player2"] as const).reduce<OnlineRoom["answers"]>((result, playerKey) => {
+      const playerAnswers = rawAnswers[playerKey];
+      if (!playerAnswers || typeof playerAnswers !== "object") {
         return result;
       }
 
-      const playerAnswers = Object.entries(players as Record<string, unknown>).reduce<
-        Partial<Record<PlayerKey, OnlineRoomAnswer>>
-      >((answerResult, [playerKey, answer]) => {
-        if ((playerKey !== "player1" && playerKey !== "player2") || !answer || typeof answer !== "object") {
-          return answerResult;
+      result[playerKey] = Object.entries(playerAnswers as Record<string, unknown>).reduce<
+        Record<string, OnlineRoomAnswer>
+      >((answerResult, [questionId, answer]) => {
+        const parsedAnswer = parseAnswer(answer);
+        if (parsedAnswer) {
+          answerResult[questionId] = parsedAnswer;
         }
-
-        const parsedAnswer = answer as Partial<OnlineRoomAnswer>;
-        if (typeof parsedAnswer.selectedIndex !== "number") {
-          return answerResult;
-        }
-
-        answerResult[playerKey] = {
-          selectedIndex: parsedAnswer.selectedIndex,
-          answeredAt: typeof parsedAnswer.answeredAt === "number" ? parsedAnswer.answeredAt : Date.now(),
-        };
         return answerResult;
       }, {});
 
-      result[questionId] = playerAnswers;
       return result;
-    },
-    {},
-  );
+    }, emptyAnswers);
+  }
+
+  return Object.entries(rawAnswers).reduce<OnlineRoom["answers"]>((result, [questionId, players]) => {
+    if (!players || typeof players !== "object") {
+      return result;
+    }
+
+    Object.entries(players as Record<string, unknown>).forEach(([playerKey, answer]) => {
+      if (playerKey !== "player1" && playerKey !== "player2") {
+        return;
+      }
+
+      const parsedAnswer = parseAnswer(answer);
+      if (parsedAnswer) {
+        result[playerKey][questionId] = parsedAnswer;
+      }
+    });
+
+    return result;
+  }, emptyAnswers);
 }
 
 function normalizeRoom(roomCode: string, value: unknown): OnlineRoom | null {
@@ -111,6 +160,13 @@ function normalizeRoom(roomCode: string, value: unknown): OnlineRoom | null {
     room.status === "finished"
       ? (room.status as OnlineRoomStatus)
       : "waiting";
+  const questionIds = Array.isArray(room.questionIds)
+    ? room.questionIds.filter((id): id is string => typeof id === "string")
+    : [];
+  const answers = normalizeAnswers(room.answers);
+  const legacyIndex = typeof room.currentQuestionIndex === "number" ? room.currentQuestionIndex : 0;
+  const player1AnswerCount = Object.keys(answers.player1).length;
+  const player2AnswerCount = Object.keys(answers.player2).length;
 
   return {
     roomCode,
@@ -120,15 +176,21 @@ function normalizeRoom(roomCode: string, value: unknown): OnlineRoom | null {
     finishedAt: typeof room.finishedAt === "number" ? room.finishedAt : null,
     settings: normalizeSettings(room.settings),
     players: {
-      player1: normalizePlayer(rawPlayers.player1),
-      player2: normalizePlayer(rawPlayers.player2),
+      player1: normalizePlayerState(
+        rawPlayers.player1,
+        legacyIndex,
+        player1AnswerCount,
+        questionIds.length,
+      ),
+      player2: normalizePlayerState(
+        rawPlayers.player2,
+        legacyIndex,
+        player2AnswerCount,
+        questionIds.length,
+      ),
     },
-    questionIds: Array.isArray(room.questionIds)
-      ? room.questionIds.filter((id): id is string => typeof id === "string")
-      : [],
-    currentQuestionIndex:
-      typeof room.currentQuestionIndex === "number" ? room.currentQuestionIndex : 0,
-    answers: normalizeAnswers(room.answers),
+    questionIds,
+    answers,
     result: room.result && typeof room.result === "object" ? (room.result as BattleResult) : null,
   };
 }
@@ -205,11 +267,16 @@ export async function createOnlineRoom(
             connected: true,
             joinedAt: Date.now(),
             lastSeenAt: Date.now(),
+            currentQuestionIndex: 0,
+            answeredCount: 0,
+            finished: false,
           },
         },
         questionIds: [],
-        currentQuestionIndex: 0,
-        answers: {},
+        answers: {
+          player1: {},
+          player2: {},
+        },
         result: null,
       };
     });
@@ -293,6 +360,18 @@ export async function joinOnlineRoom(roomCodeInput: string, playerName: string):
             ? existingPlayer2.joinedAt
             : Date.now(),
           lastSeenAt: Date.now(),
+          currentQuestionIndex:
+            existingPlayer2 && typeof existingPlayer2.currentQuestionIndex === "number"
+              ? existingPlayer2.currentQuestionIndex
+              : 0,
+          answeredCount:
+            existingPlayer2 && typeof existingPlayer2.answeredCount === "number"
+              ? existingPlayer2.answeredCount
+              : 0,
+          finished:
+            existingPlayer2 && typeof existingPlayer2.finished === "boolean"
+              ? existingPlayer2.finished
+              : false,
         },
       },
     };
@@ -347,8 +426,16 @@ export async function startOnlineRoom(
     finishedAt: null,
     settings,
     questionIds,
-    currentQuestionIndex: 0,
-    answers: {},
+    answers: {
+      player1: {},
+      player2: {},
+    },
+    "players/player1/currentQuestionIndex": 0,
+    "players/player1/answeredCount": 0,
+    "players/player1/finished": false,
+    "players/player2/currentQuestionIndex": 0,
+    "players/player2/answeredCount": 0,
+    "players/player2/finished": false,
     result: null,
   });
 }
@@ -357,32 +444,68 @@ export async function submitOnlineAnswer(
   session: OnlineSession,
   questionId: string,
   selectedIndex: number,
+  answeredCount: number,
 ) {
   const database = requireDatabase();
 
-  await update(ref(database, `${roomPath(session.roomCode)}/answers/${questionId}/${session.playerKey}`), {
-    selectedIndex,
-    answeredAt: Date.now(),
+  await update(ref(database, roomPath(session.roomCode)), {
+    [`answers/${session.playerKey}/${questionId}`]: {
+      selectedIndex,
+      answeredAt: Date.now(),
+    },
+    [`players/${session.playerKey}/answeredCount`]: answeredCount,
   });
 }
 
-export async function advanceOnlineQuestion(roomCodeInput: string, nextIndex: number) {
+export async function advanceOnlineQuestion(
+  session: OnlineSession,
+  nextIndex: number,
+  finished: boolean,
+) {
   const database = requireDatabase();
-  const roomCode = normalizeRoomCode(roomCodeInput);
 
-  await update(ref(database, roomPath(roomCode)), {
-    currentQuestionIndex: nextIndex,
+  await update(ref(database, roomPath(session.roomCode)), {
+    [`players/${session.playerKey}/currentQuestionIndex`]: nextIndex,
+    [`players/${session.playerKey}/finished`]: finished,
   });
 }
 
 export async function finishOnlineRoom(roomCodeInput: string, result: BattleResult) {
   const database = requireDatabase();
   const roomCode = normalizeRoomCode(roomCodeInput);
+  const roomRef = ref(database, roomPath(roomCode));
 
-  await update(ref(database, roomPath(roomCode)), {
-    status: "finished",
-    finishedAt: result.finishedAt ?? Date.now(),
-    result,
+  await runTransaction(roomRef, (currentRoom) => {
+    if (!currentRoom || typeof currentRoom !== "object") {
+      return currentRoom;
+    }
+
+    const room = currentRoom as Record<string, unknown>;
+    const players =
+      room.players && typeof room.players === "object"
+        ? (room.players as Record<string, unknown>)
+        : {};
+    const player1 = players.player1 && typeof players.player1 === "object"
+      ? (players.player1 as Record<string, unknown>)
+      : null;
+    const player2 = players.player2 && typeof players.player2 === "object"
+      ? (players.player2 as Record<string, unknown>)
+      : null;
+
+    if (room.status === "finished" && room.result) {
+      return room;
+    }
+
+    if (player1?.finished !== true || player2?.finished !== true) {
+      return;
+    }
+
+    return {
+      ...room,
+      status: "finished",
+      finishedAt: result.finishedAt ?? Date.now(),
+      result,
+    };
   });
 }
 
