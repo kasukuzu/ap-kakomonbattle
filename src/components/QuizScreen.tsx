@@ -97,7 +97,7 @@ export function QuizScreen({ settings, questions, startedAt, onCancel, onFinish 
           <h1>{progressText}</h1>
         </div>
         <div className="score-mini">
-          <span>経過 {formattedElapsed}</span>
+          <span className="timer-chip">経過 {formattedElapsed}</span>
           <span>
             {settings.player1Name}: {playerScores.player1}
           </span>

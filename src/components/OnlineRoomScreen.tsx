@@ -1,5 +1,6 @@
 import { formatFilterLabel } from "../questionData";
 import type { OnlineRoom, OnlineSession, PlayerKey } from "../types";
+import { LoadingSpinner } from "./LoadingSpinner";
 
 type OnlineRoomScreenProps = {
   room: OnlineRoom | null;
@@ -42,7 +43,13 @@ export function OnlineRoomScreen({
   if (isLoading) {
     return (
       <section className="screen narrow-screen">
-        <div className="panel empty-state">ルーム情報を読み込み中です...</div>
+        <div className="panel waiting-card waiting-card-center">
+          <LoadingSpinner size="lg" />
+          <div>
+            <h2>ルーム情報を読み込み中です</h2>
+            <p className="subtle-text">接続状況を確認しています。</p>
+          </div>
+        </div>
       </section>
     );
   }
@@ -68,15 +75,47 @@ export function OnlineRoomScreen({
     room.players.player2?.connected;
   const opponentKey = getOpponentKey(session.playerKey);
   const opponentDisconnected = Boolean(room.players[opponentKey] && room.players[opponentKey]?.connected === false);
+  const waitingTitle = opponentDisconnected
+    ? "相手の再接続を待っています..."
+    : room.players.player2
+      ? session.playerKey === "player1"
+        ? "2人そろいました。開始できます"
+        : "ホストの開始を待っています..."
+      : "対戦相手を待っています...";
+  const waitingDescription = opponentDisconnected
+    ? "接続が戻るとルームに再参加できます。"
+    : room.players.player2
+      ? "同じ問題セットで対戦を開始します。"
+      : "この4桁コードを相手に共有してください。";
 
   return (
     <section className="screen room-screen">
       <div className="section-heading">
         <p className="eyebrow">オンライン対戦</p>
-        <h1>ルームコード {room.roomCode}</h1>
+        <h1>ルーム待機</h1>
       </div>
 
       <div className="room-layout">
+        <div className="room-hero-grid">
+          <article className="panel room-code-card">
+            <p className="eyebrow">ルームコード</p>
+            <div className="room-code-value" aria-label={`ルームコード ${room.roomCode}`}>
+              {room.roomCode}
+            </div>
+            <p className="subtle-text">参加側はこの4桁コードを入力して合流します。</p>
+          </article>
+
+          <article className="panel waiting-card">
+            <div className="waiting-card-main">
+              <LoadingSpinner size="lg" />
+              <div>
+                <h2>{waitingTitle}</h2>
+                <p className="subtle-text">{waitingDescription}</p>
+              </div>
+            </div>
+          </article>
+        </div>
+
         <article className="panel room-summary">
           <div className="question-meta">
             <span>{getStatusLabel(room.status)}</span>
@@ -142,9 +181,9 @@ type PlayerStatusCardProps = {
 
 function PlayerStatusCard({ label, player, isMe }: PlayerStatusCardProps) {
   return (
-    <section className="panel player-panel">
-      <div className="player-title">
-        <h2>{player?.name ?? `${label} 参加待ち`}</h2>
+        <section className="panel player-panel">
+          <div className="player-title">
+            <h2>{player?.name ?? `${label} 参加待ち`}</h2>
         <span className={`badge ${player?.connected === false ? "wrong" : "correct"}`}>
           {player ? (player.connected === false ? "切断" : "接続中") : "未参加"}
         </span>

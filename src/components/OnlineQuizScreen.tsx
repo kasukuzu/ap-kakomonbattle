@@ -77,7 +77,7 @@ export function OnlineQuizScreen({
           <h1>{progressText}</h1>
         </div>
         <div className="score-mini">
-          <span>経過 {formattedElapsed}</span>
+          <span className="timer-chip">経過 {formattedElapsed}</span>
           <span>{room.settings.player1Name}: {scoreMap.player1}</span>
           <span>{room.settings.player2Name}: {scoreMap.player2}</span>
         </div>

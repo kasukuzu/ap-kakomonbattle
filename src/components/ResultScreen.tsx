@@ -30,9 +30,20 @@ export function ResultScreen({
 
   return (
     <section className="screen narrow-screen">
-      <div className="section-heading">
-        <p className="eyebrow">結果</p>
-        <h1>{winnerText}</h1>
+      <div className="panel result-hero">
+        <div>
+          <p className="eyebrow">結果</p>
+          <h1>{winnerText}</h1>
+          <p className="subtle-text">
+            {result.mode === "online" ? "オンライン対戦" : "ローカル対戦"} / {questionCount}問
+          </p>
+        </div>
+        <div className="result-hero-badges">
+          <span className="badge result-mode-badge">
+            {result.mode === "online" ? "オンライン" : "ローカル"}
+          </span>
+          <span className="badge timer-chip">経過 {formatElapsedTime(result.elapsedMs)}</span>
+        </div>
       </div>
 
       <div className="result-grid">
@@ -61,7 +72,7 @@ export function ResultScreen({
         <span>出題順: {result.settings.questionOrder === "random" ? "ランダム" : "問題番号順"}</span>
         <span>復習対象: {mistakeCount}問</span>
         {result.roomCode && <span>ルームコード: {result.roomCode}</span>}
-        <span>経過時間: {formatElapsedTime(result.elapsedMs)}</span>
+        <span className="timer-chip">経過時間: {formatElapsedTime(result.elapsedMs)}</span>
         <span>保存日時: {new Date(result.playedAt).toLocaleString("ja-JP")}</span>
       </div>
 
