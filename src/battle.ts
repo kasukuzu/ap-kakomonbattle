@@ -89,7 +89,7 @@ export function createBattleResult(
       };
     };
 
-    return {
+    const baseResult = {
       questionId: question.id,
       order: index + 1,
       year: question.year,
@@ -98,16 +98,20 @@ export function createBattleResult(
       questionNumber: question.questionNumber,
       category: question.category,
       question: question.question,
-      questionImage: question.questionImage,
-      answerAreaImage: question.answerAreaImage,
       choices: question.choices,
-      choiceImages: question.choiceImages,
       correctAnswer: question.answer,
       correctAnswerLabel: question.answerLabel,
       correctAnswerText: question.choices[question.answer] ?? "",
       correctAnswerImage: question.choiceImages?.[question.answer] ?? null,
       player1: createPlayerAnswer("player1"),
       player2: createPlayerAnswer("player2"),
+    };
+
+    return {
+      ...baseResult,
+      ...(question.questionImage ? { questionImage: question.questionImage } : {}),
+      ...(question.answerAreaImage ? { answerAreaImage: question.answerAreaImage } : {}),
+      ...(question.choiceImages ? { choiceImages: question.choiceImages } : {}),
     };
   });
   const winner =

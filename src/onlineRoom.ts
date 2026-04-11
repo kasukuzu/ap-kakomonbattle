@@ -1,4 +1,5 @@
 import { get, onDisconnect, onValue, ref, runTransaction, update } from "firebase/database";
+import { sanitizeForFirebase, sanitizeUpdatePayload } from "./firebaseData";
 import { ensureSignedInAnonymously, getFirebaseDatabase, getOnlineFeatureStatus } from "./lib/firebase";
 import type {
   BattleResult,
@@ -209,14 +210,14 @@ async function bindPresence(roomCode: string, playerKey: PlayerKey) {
   const database = requireDatabase();
   const playerRef = ref(database, `${roomPath(roomCode)}/players/${playerKey}`);
   const connectedRef = ref(database, ".info/connected");
-  const unsubscribe = onValue(connectedRef, async (snapshot) => {
+    const unsubscribe = onValue(connectedRef, async (snapshot) => {
     if (snapshot.val() !== true) {
       return;
     }
 
     try {
-      await onDisconnect(playerRef).update({ connected: false });
-      await update(playerRef, { connected: true, lastSeenAt: Date.now() });
+      await onDisconnect(playerRef).update(sanitizeUpdatePayload({ connected: false }));
+      await update(playerRef, sanitizeUpdatePayload({ connected: true, lastSeenAt: Date.now() }));
     } catch {
       // Presence update failures are surfaced in the room UI through stale connection state.
     }
@@ -249,7 +250,7 @@ export async function createOnlineRoom(
         return;
       }
 
-      return {
+      return sanitizeForFirebase({
         roomCode,
         status: "waiting",
         createdAt: Date.now(),
@@ -278,7 +279,7 @@ export async function createOnlineRoom(
           player2: {},
         },
         result: null,
-      };
+      });
     });
 
     if (transaction.committed) {
@@ -343,7 +344,7 @@ export async function joinOnlineRoom(roomCodeInput: string, playerName: string):
       return;
     }
 
-    return {
+    return sanitizeForFirebase({
       ...current,
       status: "ready",
       settings: {
@@ -374,7 +375,7 @@ export async function joinOnlineRoom(roomCodeInput: string, playerName: string):
               : false,
         },
       },
-    };
+    });
   });
 
   if (!transaction.committed) {
@@ -420,24 +421,27 @@ export async function startOnlineRoom(
   const database = requireDatabase();
   const roomCode = normalizeRoomCode(roomCodeInput);
 
-  await update(ref(database, roomPath(roomCode)), {
-    status: "playing",
-    startedAt: Date.now(),
-    finishedAt: null,
-    settings,
-    questionIds,
-    answers: {
-      player1: {},
-      player2: {},
-    },
-    "players/player1/currentQuestionIndex": 0,
-    "players/player1/answeredCount": 0,
-    "players/player1/finished": false,
-    "players/player2/currentQuestionIndex": 0,
-    "players/player2/answeredCount": 0,
-    "players/player2/finished": false,
-    result: null,
-  });
+  await update(
+    ref(database, roomPath(roomCode)),
+    sanitizeUpdatePayload({
+      status: "playing",
+      startedAt: Date.now(),
+      finishedAt: null,
+      settings,
+      questionIds,
+      answers: {
+        player1: {},
+        player2: {},
+      },
+      "players/player1/currentQuestionIndex": 0,
+      "players/player1/answeredCount": 0,
+      "players/player1/finished": false,
+      "players/player2/currentQuestionIndex": 0,
+      "players/player2/answeredCount": 0,
+      "players/player2/finished": false,
+      result: null,
+    }),
+  );
 }
 
 export async function submitOnlineAnswer(
@@ -448,13 +452,16 @@ export async function submitOnlineAnswer(
 ) {
   const database = requireDatabase();
 
-  await update(ref(database, roomPath(session.roomCode)), {
-    [`answers/${session.playerKey}/${questionId}`]: {
-      selectedIndex,
-      answeredAt: Date.now(),
-    },
-    [`players/${session.playerKey}/answeredCount`]: answeredCount,
-  });
+  await update(
+    ref(database, roomPath(session.roomCode)),
+    sanitizeUpdatePayload({
+      [`answers/${session.playerKey}/${questionId}`]: {
+        selectedIndex,
+        answeredAt: Date.now(),
+      },
+      [`players/${session.playerKey}/answeredCount`]: answeredCount,
+    }),
+  );
 }
 
 export async function advanceOnlineQuestion(
@@ -464,10 +471,13 @@ export async function advanceOnlineQuestion(
 ) {
   const database = requireDatabase();
 
-  await update(ref(database, roomPath(session.roomCode)), {
-    [`players/${session.playerKey}/currentQuestionIndex`]: nextIndex,
-    [`players/${session.playerKey}/finished`]: finished,
-  });
+  await update(
+    ref(database, roomPath(session.roomCode)),
+    sanitizeUpdatePayload({
+      [`players/${session.playerKey}/currentQuestionIndex`]: nextIndex,
+      [`players/${session.playerKey}/finished`]: finished,
+    }),
+  );
 }
 
 export async function finishOnlineRoom(roomCodeInput: string, result: BattleResult) {
@@ -500,12 +510,12 @@ export async function finishOnlineRoom(roomCodeInput: string, result: BattleResu
       return;
     }
 
-    return {
+    return sanitizeForFirebase({
       ...room,
       status: "finished",
       finishedAt: result.finishedAt ?? Date.now(),
       result,
-    };
+    });
   });
 }
 
@@ -521,8 +531,11 @@ export async function leaveOnlineRoom(session: OnlineSession | null) {
     return;
   }
 
-  await update(ref(database, `${roomPath(session.roomCode)}/players/${session.playerKey}`), {
-    connected: false,
-    lastSeenAt: Date.now(),
-  });
+  await update(
+    ref(database, `${roomPath(session.roomCode)}/players/${session.playerKey}`),
+    sanitizeUpdatePayload({
+      connected: false,
+      lastSeenAt: Date.now(),
+    }),
+  );
 }
