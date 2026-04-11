@@ -65,6 +65,7 @@ function getErrorMessage(error: unknown) {
 
 function App() {
   const [screen, setScreen] = useState<Screen>("top");
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [settings, setSettings] = useState<BattleSettings>(defaultSettings);
   const [quizQuestions, setQuizQuestions] = useState<Question[]>([]);
   const [localStartedAt, setLocalStartedAt] = useState<number | null>(null);
@@ -121,6 +122,31 @@ function App() {
     saveHistory(onlineRoom.result);
     setSavedOnlineResultId(onlineRoom.result.id);
   }, [onlineRoom?.result, savedOnlineResultId]);
+
+  useEffect(() => {
+    setIsMobileMenuOpen(false);
+  }, [screen]);
+
+  useEffect(() => {
+    if (!isMobileMenuOpen) {
+      return undefined;
+    }
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setIsMobileMenuOpen(false);
+      }
+    };
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", onKeyDown);
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, [isMobileMenuOpen]);
 
   const onlineQuestions = useMemo(() => {
     return getQuestionsByIds(onlineRoom?.questionIds ?? []);
@@ -338,22 +364,70 @@ function App() {
     setScreen("review");
   };
 
+  const navigationItems: Array<{ screen: Screen; label: string }> = [
+    { screen: "setup", label: "ローカル対戦" },
+    { screen: "onlineMenu", label: "オンライン対戦" },
+    { screen: "history", label: "履歴" },
+  ];
+
+  const navigateFromMenu = (nextScreen: Screen) => {
+    setIsMobileMenuOpen(false);
+    handleNavigate(nextScreen);
+  };
+
   return (
     <div className="app">
       <header className="app-header">
-        <button className="brand-button" type="button" onClick={() => handleNavigate("top")}>
+        <button className="brand-button" type="button" onClick={() => navigateFromMenu("top")}>
           応用情報 過去問バトル
         </button>
-        <nav className="header-actions" aria-label="画面切り替え">
-          <button type="button" onClick={() => handleNavigate("setup")}>
-            ローカル対戦
+        <nav className="header-nav" aria-label="画面切り替え">
+          <div className="header-actions desktop-nav">
+            {navigationItems.map((item) => (
+              <button key={item.screen} type="button" onClick={() => handleNavigate(item.screen)}>
+                {item.label}
+              </button>
+            ))}
+          </div>
+
+          <button
+            aria-controls="mobile-navigation"
+            aria-expanded={isMobileMenuOpen}
+            aria-label={isMobileMenuOpen ? "メニューを閉じる" : "メニューを開く"}
+            className={`menu-toggle${isMobileMenuOpen ? " is-open" : ""}`}
+            type="button"
+            onClick={() => setIsMobileMenuOpen((current) => !current)}
+          >
+            <span />
+            <span />
+            <span />
           </button>
-          <button type="button" onClick={() => handleNavigate("onlineMenu")}>
-            オンライン対戦
-          </button>
-          <button type="button" onClick={() => handleNavigate("history")}>
-            履歴
-          </button>
+
+          <div
+            aria-hidden={!isMobileMenuOpen}
+            className={`mobile-menu-overlay${isMobileMenuOpen ? " is-open" : ""}`}
+            onClick={() => setIsMobileMenuOpen(false)}
+          />
+
+          <div
+            className={`mobile-menu${isMobileMenuOpen ? " is-open" : ""}`}
+            id="mobile-navigation"
+            role="menu"
+          >
+            <div className="mobile-menu-actions">
+              {navigationItems.map((item) => (
+                <button
+                  key={item.screen}
+                  className="mobile-menu-button"
+                  role="menuitem"
+                  type="button"
+                  onClick={() => navigateFromMenu(item.screen)}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
+          </div>
         </nav>
       </header>
 

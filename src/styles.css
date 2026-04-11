@@ -127,7 +127,7 @@ p {
 .app-header {
   position: sticky;
   top: 0;
-  z-index: 10;
+  z-index: 30;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -155,11 +155,108 @@ p {
   box-shadow: none;
 }
 
+.header-nav {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
 .header-actions,
 .button-row {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
+}
+
+.desktop-nav {
+  align-items: center;
+}
+
+.menu-toggle {
+  display: none;
+  min-width: 52px;
+  min-height: 52px;
+  padding: 12px;
+  border-color: rgba(72, 106, 156, 0.18);
+  background: rgba(255, 255, 255, 0.88);
+  box-shadow: 0 10px 24px rgba(31, 79, 152, 0.1);
+}
+
+.menu-toggle span {
+  display: block;
+  width: 22px;
+  height: 2px;
+  border-radius: 999px;
+  background: #173969;
+  margin: 4px auto;
+  transition:
+    transform 180ms ease,
+    opacity 180ms ease,
+    background-color 180ms ease;
+}
+
+.menu-toggle.is-open span:nth-child(1) {
+  transform: translateY(6px) rotate(45deg);
+}
+
+.menu-toggle.is-open span:nth-child(2) {
+  opacity: 0;
+}
+
+.menu-toggle.is-open span:nth-child(3) {
+  transform: translateY(-6px) rotate(-45deg);
+}
+
+.mobile-menu-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(14, 25, 42, 0.26);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 180ms ease;
+}
+
+.mobile-menu-overlay.is-open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.mobile-menu {
+  display: none;
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  width: min(260px, calc(100vw - 24px));
+  border: 1px solid rgba(72, 106, 156, 0.16);
+  border-radius: 8px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(244, 248, 255, 0.98));
+  box-shadow: 0 22px 40px rgba(24, 47, 91, 0.18);
+  padding: 12px;
+  opacity: 0;
+  transform: translateY(-8px) scale(0.98);
+  pointer-events: none;
+  transition:
+    opacity 180ms ease,
+    transform 180ms ease;
+}
+
+.mobile-menu.is-open {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  pointer-events: auto;
+}
+
+.mobile-menu-actions {
+  display: grid;
+  gap: 8px;
+}
+
+.mobile-menu-button {
+  width: 100%;
+  min-height: 52px;
+  justify-content: flex-start;
+  text-align: left;
 }
 
 .screen {
@@ -928,7 +1025,6 @@ p {
 }
 
 @media (max-width: 760px) {
-  .app-header,
   .history-item {
     align-items: stretch;
     flex-direction: column;
@@ -938,11 +1034,37 @@ p {
     padding: 14px 16px;
   }
 
-  .header-actions {
-    width: 100%;
+  .brand-button {
+    min-width: 0;
+    font-size: 1rem;
+    text-align: left;
   }
 
-  .header-actions button,
+  .header-nav {
+    position: relative;
+    margin-left: auto;
+  }
+
+  .desktop-nav {
+    display: none;
+  }
+
+  .menu-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .mobile-menu-overlay,
+  .mobile-menu {
+    display: block;
+  }
+
+  .mobile-menu-button,
+  .menu-toggle {
+    flex: none;
+  }
+
   .button-row button {
     flex: 1 1 180px;
   }
