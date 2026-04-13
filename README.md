@@ -1,52 +1,61 @@
-# 応用情報 過去問バトル
+# AP Kakomon Battle
 
-応用情報技術者試験の午前問題を使った、2人対戦形式の学習アプリです。  
-ローカル対戦と、4桁ルームコードを使うオンライン対戦に対応しています。
+応用情報技術者試験の過去問題を使って、2人で対戦できる学習アプリです。  
+ローカル対戦と、4桁ルームコードを使ったオンライン対戦に対応しています。
 
-現在は以下の6回分を収録しています。
+現在は午前問題に対応しており、複数年度・複数回の問題セットから出題できます。  
+アプリ本体は PDF を直接読み込まず、[`data/questions.json`](/Users/karasawakei/Desktop/ap-kakomon-battle/data/questions.json) と事前生成した画像アセットを使って表示します。
 
-- 令和6年春
-- 令和6年秋
-- 令和5年春
-- 令和5年秋
+## 収録データ
+
+現時点で収録している回は次のとおりです。
+
+- 平成31年春
+- 令和元年秋
+- 令和2年
+- 令和3年春
+- 令和3年秋
 - 令和4年春
 - 令和4年秋
+- 令和5年春
+- 令和5年秋
+- 令和6年春
+- 令和6年秋
 
-## アプリ概要
+合計 880 問を収録しています。
 
-このアプリは、同じ問題セットを2人で解いて正答率を競うことを目的にしています。
+年度ごとの開催回:
 
-- ローカル対戦では1台で2人が順番に回答
-- オンライン対戦では4桁コードでルームを共有
-- 年度、期、分野、出題数、出題順を指定して出題
-- 図や表を含む問題は、事前生成したPNG画像を表示
-- 対戦結果は履歴として保存し、間違えた問題だけ復習可能
+- `令和6`〜`令和3`: 春 / 秋
+- `令和2`: 1回開催
+- `令和元`: 秋のみ
+- `平成31`: 春のみ
 
 ## 主な機能
 
 - ローカル対戦
-  - 2人のプレイヤー名入力
-  - 同一問題セットでの4択対戦
-  - 正解 / 不正解の即時表示
-  - 結果画面で正解数、正答率、勝敗を表示
+  - 1台で2人が同じ問題セットを解いて正答率を競う
 - オンライン対戦
-  - 4桁ルームコードによる作成 / 参加
-  - 同じ `questionIds` を共有して対戦
-  - 各プレイヤーが自分のペースで進行
-  - 相手の進捗をリアルタイムゲージで表示
-  - 相手切断時の簡易メッセージ表示
-- 学習機能
-  - 年度、期、分野での絞り込み
-  - ランダム出題 / 問題番号順
-  - 経過時間表示
-  - LocalStorage 履歴保存
-  - 各問の回答内容保存
-  - 間違えた問題だけ復習
+  - 4桁ルームコードでルーム作成 / 参加
+  - 同じ問題セットを共有しつつ、各プレイヤーは自分のペースで進行
+  - 相手の進捗ゲージをリアルタイム表示
+- 経過時間表示
+  - クイズ開始からの経過時間を `mm:ss` で表示
+- 履歴保存
+  - LocalStorage に対戦結果を保存
+  - 各問の回答内容も保持
+- 復習
+  - 結果画面から間違えた問題だけを確認
 - 図表問題対応
   - `questionImage`
   - `answerAreaImage`
   - `choiceImages`
-  - PDFから事前にPNGへ切り出して表示
+- 柔軟な出題条件
+  - 年度
+  - 期
+  - 分野
+  - 出題数
+  - 順番 / ランダム
 
 ## 使用技術
 
@@ -54,15 +63,11 @@
 - Vite 7
 - TypeScript 5
 - Firebase Authentication
-  - 匿名認証
+  - Anonymous Auth
 - Firebase Realtime Database
-  - オンライン対戦のルーム同期
 - LocalStorage
-  - 履歴保存
 - PyMuPDF
-  - 問題PDFの図表切り出し
-- CSS
-  - レスポンシブ対応、アニメーション、進捗ゲージ表現
+  - 図表画像の事前切り出し用スクリプトで使用
 
 ## ローカル起動方法
 
@@ -73,7 +78,7 @@ npm install
 npm run dev
 ```
 
-通常は次のURLで確認できます。
+通常は次の URL で確認できます。
 
 ```text
 http://localhost:5173/
@@ -83,34 +88,62 @@ http://localhost:5173/
 
 ```bash
 npm run build
+```
+
+ビルド済みファイルのプレビュー:
+
+```bash
 npm run preview
 ```
 
-## Firebase 環境変数設定
+## npm scripts
 
-オンライン対戦を使う場合は、`.env.local` に以下を設定します。
+- `npm run dev`: 開発サーバー起動
+- `npm run build`: TypeScript ビルド + Vite ビルド
+- `npm run preview`: ビルド済みアプリのローカル確認
+
+## Firebase 環境変数
+
+オンライン対戦を使う場合は、以下の環境変数が必要です。  
+ローカル対戦だけなら未設定でも動きます。
+
+`.env.local` 例:
 
 ```bash
-VITE_FIREBASE_API_KEY=...
-VITE_FIREBASE_AUTH_DOMAIN=...
-VITE_FIREBASE_DATABASE_URL=...
-VITE_FIREBASE_PROJECT_ID=...
-VITE_FIREBASE_APP_ID=...
+VITE_FIREBASE_API_KEY=your_api_key
+VITE_FIREBASE_AUTH_DOMAIN=your_project.firebaseapp.com
+VITE_FIREBASE_DATABASE_URL=https://your_project-default-rtdb.firebaseio.com
+VITE_FIREBASE_PROJECT_ID=your_project_id
+VITE_FIREBASE_APP_ID=your_app_id
 ```
 
-環境変数が未設定でも、ローカル対戦は動作します。  
-その場合、オンライン対戦画面では設定不足メッセージを表示します。
+必要なキー:
 
-### Firebase コンソール側で必要な設定
+- `VITE_FIREBASE_API_KEY`
+- `VITE_FIREBASE_AUTH_DOMAIN`
+- `VITE_FIREBASE_DATABASE_URL`
+- `VITE_FIREBASE_PROJECT_ID`
+- `VITE_FIREBASE_APP_ID`
 
-1. Firebase プロジェクトを作成
-2. Web App を追加
-3. Authentication で `匿名` サインインを有効化
-4. Realtime Database を作成
-5. Database URL を取得
-6. Realtime Database Rules を設定
+## Firebase コンソール設定
 
-MVP向けの最小ルール例:
+オンライン対戦で必要な設定です。
+
+### 1. Web アプリを追加
+
+Firebase プロジェクトを作成し、Web アプリを追加して設定値を取得します。
+
+### 2. Authentication
+
+- `Authentication` を有効化
+- `Sign-in method` で `匿名` を有効化
+
+### 3. Realtime Database
+
+- `Realtime Database` を作成
+- ルーム情報を保存できるようにする
+
+MVP 向けの最低限の Rules 例:
 
 ```json
 {
@@ -125,31 +158,24 @@ MVP向けの最小ルール例:
 }
 ```
 
+この Rules は簡易版です。公開運用では絞り込みを強める方が安全です。
+
 ## オンライン対戦の使い方
 
-1. トップ画面から `オンライン対戦` を選ぶ
-2. ホスト側が `ルーム作成` を選び、名前と出題条件を設定する
-3. 4桁ルームコードを相手に共有する
-4. 参加側が `ルーム参加` を選び、名前と4桁コードを入力する
-5. 2人そろったらホストが開始する
-6. 同じ問題セットを同じ順番で解く
-7. ただし進行はプレイヤーごとに独立しており、待たずに先へ進める
-8. 両者が完了すると結果画面へ移動する
+1. トップ画面から `オンライン対戦` を開く
+2. ホスト側が `ルーム作成`
+3. 4桁コードを相手に共有
+4. ゲスト側が `ルーム参加` からコードを入力
+5. 2人そろったらホストが開始
+6. 同じ `questionIds` を同じ順番で受け取って対戦開始
+7. 各プレイヤーは相手を待たずに自分のペースで進行
+8. 両者完了後に結果画面へ遷移
 
-オンライン対戦中は以下を表示します。
+## 問題データ形式
 
-- 経過時間
-- 自分の進捗
-- 相手の進捗ゲージ
-- 相手の完了状態
-- 接続切断の簡易メッセージ
+問題データは [`data/questions.json`](/Users/karasawakei/Desktop/ap-kakomon-battle/data/questions.json) にまとめています。
 
-## データと問題画像
-
-問題データは `data/questions.json` を使用します。  
-本番アプリではPDFを直接読みません。
-
-現在の問題データ形式:
+例:
 
 ```json
 {
@@ -160,65 +186,113 @@ MVP向けの最小ルール例:
   "section": "午前",
   "questionNumber": 21,
   "category": "テクノロジ",
-  "question": "図はスイッチ A 及び B の状態によって、LED が点灯又は消灯する回路である。…",
+  "question": "問題文",
   "questionImage": "/question-assets/r6-autumn-am-21-question.png",
   "answerAreaImage": "/question-assets/r6-autumn-am-21-answer-area.png",
   "choices": [
-    "タイミングチャート ア（画像選択肢）",
-    "タイミングチャート イ（画像選択肢）",
-    "タイミングチャート ウ（画像選択肢）",
-    "タイミングチャート エ（画像選択肢）"
+    "アの選択肢",
+    "イの選択肢",
+    "ウの選択肢",
+    "エの選択肢"
   ],
-  "choiceImages": [null, null, null, null],
+  "choiceImages": [
+    null,
+    null,
+    null,
+    null
+  ],
   "answer": 2,
   "answerLabel": "ウ",
   "explanation": ""
 }
 ```
 
-画像がない問題では `questionImage`、`answerAreaImage`、`choiceImages` は省略できます。
+補足:
 
-### 図表画像の生成
+- `questionImage` は問題図
+- `answerAreaImage` は図付き解答欄や選択肢群の補助画像
+- `choiceImages` は各選択肢ごとの画像
+- `令和2` は `season: "なし"` を使っています
 
-図表は `scripts/asset_map.json` で管理し、`scripts/extract_question_assets.py` で PNG を生成します。
+## 年度・期の扱い
 
-前提:
+対戦設定画面では、年度に応じて有効な期だけ選べます。
+
+- `令和6`〜`令和3`
+  - `全て / 春 / 秋`
+- `令和2`
+  - `期なし`
+- `令和元`
+  - `秋のみ`
+- `平成31`
+  - `春のみ`
+
+無効な組み合わせは UI と出題ロジックの両方で防いでいます。
+
+## 図表画像の管理
+
+図表付き問題は、PDF から事前に切り出した PNG を使います。  
+本番アプリでは PDF を直接扱いません。
+
+関連ファイル:
+
+- [`scripts/asset_map.json`](/Users/karasawakei/Desktop/ap-kakomon-battle/scripts/asset_map.json)
+- [`scripts/extract_question_assets.py`](/Users/karasawakei/Desktop/ap-kakomon-battle/scripts/extract_question_assets.py)
+- [`scripts/fetch_missing_visual_assets.py`](/Users/karasawakei/Desktop/ap-kakomon-battle/scripts/fetch_missing_visual_assets.py)
+- 出力先: [`public/question-assets/`](/Users/karasawakei/Desktop/ap-kakomon-battle/public/question-assets)
+
+### 画像切り出し
+
+PyMuPDF をインストール:
 
 ```bash
 python3 -m pip install PyMuPDF
 ```
 
-全件生成:
+`asset_map.json` に定義した画像を一括生成:
 
 ```bash
 python3 scripts/extract_question_assets.py --overwrite
 ```
 
-特定IDだけ生成:
+特定の問題だけ生成:
 
 ```bash
 python3 scripts/extract_question_assets.py --id r6-autumn-am-21 --overwrite
 ```
 
-出力先:
+### 未対応画像の補完
 
-- `public/question-assets/{id}-question.png`
-- `public/question-assets/{id}-answer-area.png`
+未対応だった図表画像をまとめて補完するスクリプト:
 
-## Vercel デプロイについて
+```bash
+python3 scripts/fetch_missing_visual_assets.py
+```
 
-このプロジェクトは Vercel で公開できます。  
-Vercel 側では以下を設定してください。
+## 旧年度データの追加
 
-### Build 設定
+旧年度の取り込み用スクリプト:
+
+- [`scripts/import_legacy_sessions.py`](/Users/karasawakei/Desktop/ap-kakomon-battle/scripts/import_legacy_sessions.py)
+
+このスクリプトでは、次のような特殊なファイル名ルールも吸収しています。
+
+- 通常: `r6-autumn-answers`, `r6-spring-answers`
+- `令和2`: `r2-answers`
+- `令和元年秋`: `r-autumn-answers`
+- `平成31年春`: `h31-spring-answers`
+
+## Vercel デプロイ
+
+Vercel では通常の Vite アプリとしてデプロイできます。
+
+設定の目安:
 
 - Framework Preset: `Vite`
 - Build Command: `npm run build`
 - Output Directory: `dist`
 
-### Environment Variables
-
-ローカルと同じ `VITE_FIREBASE_*` を Vercel に設定します。
+必要な環境変数:
 
 - `VITE_FIREBASE_API_KEY`
 - `VITE_FIREBASE_AUTH_DOMAIN`
@@ -226,29 +300,14 @@ Vercel 側では以下を設定してください。
 - `VITE_FIREBASE_PROJECT_ID`
 - `VITE_FIREBASE_APP_ID`
 
-設定後に再デプロイが必要です。
-
-### 公開時の注意
-
-- Firebase Authentication の承認済みドメインに、公開URLを追加してください
-- Realtime Database Rules は少なくとも匿名認証済みユーザーの読書きを許可する必要があります
-- `data/raw/` のPDF原本はアプリ実行には不要で、公開対象にも含めません
+加えて、Firebase Authentication 側で Vercel の公開ドメインを許可してください。
 
 ## 今後の改善予定
 
-- `asset_map.json` を埋めて、図表問題を全問カバーする
-- 図付き選択肢の切り出しを `choiceImages` まで広げる
-- オンライン対戦の再接続復帰を強化する
-- ルームの自動掃除、期限切れ削除を追加する
-- Firebase Rules をより厳密にする
-- `questions.json` の分割や dynamic import による chunk 最適化
-- 解説データの追加
-- 復習画面の検索、絞り込み、再出題
+- Firebase Rules の厳格化
+- オンライン対戦の再接続復帰
+- 問題ごとの解説追加
+- 図付き選択肢の整備をさらに進める
+- 画像アセット管理の自動化
+- 問題データ増加に伴う chunk 最適化
 
-## npm scripts
-
-```bash
-npm run dev
-npm run build
-npm run preview
-```
