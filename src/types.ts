@@ -1,6 +1,6 @@
 export type Category = "テクノロジ" | "マネジメント" | "ストラテジ";
-export type ExamYear = "令和6" | "令和5" | "令和4";
-export type ExamTerm = "春" | "秋";
+export type ExamYear = "令和6" | "令和5" | "令和4" | "令和3" | "令和2" | "令和元" | "平成31";
+export type ExamTerm = "春" | "秋" | "なし";
 export type FilterOption<T extends string> = T | "すべて";
 export type BattleMode = "local" | "online";
 export type QuestionOrder = "random" | "inOrder";

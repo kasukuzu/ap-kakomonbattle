@@ -1,4 +1,4 @@
-import { formatFilterLabel } from "../questionData";
+import { formatFilterLabel, formatSeasonLabel } from "../questionData";
 import type { OnlineRoom, OnlineSession, PlayerKey } from "../types";
 import { LoadingSpinner } from "./LoadingSpinner";
 
@@ -120,7 +120,7 @@ export function OnlineRoomScreen({
           <div className="question-meta">
             <span>{getStatusLabel(room.status)}</span>
             <span>{formatFilterLabel(room.settings.year)}</span>
-            <span>{formatFilterLabel(room.settings.season)}</span>
+            <span>{formatSeasonLabel(room.settings.season)}</span>
             <span>{formatFilterLabel(room.settings.category)}</span>
             <span>{room.settings.questionCount}問</span>
           </div>

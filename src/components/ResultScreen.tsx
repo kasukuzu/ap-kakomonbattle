@@ -1,6 +1,6 @@
 import { formatElapsedTime } from "../battle";
 import type { BattleResult } from "../types";
-import { formatFilterLabel } from "../questionData";
+import { formatFilterLabel, formatSeasonLabel } from "../questionData";
 
 type ResultScreenProps = {
   result: BattleResult;
@@ -66,7 +66,7 @@ export function ResultScreen({
       <div className="panel result-summary">
         <span>形式: {result.mode === "online" ? "オンライン対戦" : "ローカル対戦"}</span>
         <span>年度: {formatFilterLabel(result.settings.year)}</span>
-        <span>期: {formatFilterLabel(result.settings.season)}</span>
+        <span>期: {formatSeasonLabel(result.settings.season)}</span>
         <span>分野: {formatFilterLabel(result.settings.category)}</span>
         <span>出題数: {questionCount}問</span>
         <span>出題順: {result.settings.questionOrder === "random" ? "ランダム" : "問題番号順"}</span>

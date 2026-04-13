@@ -1,6 +1,6 @@
 import { formatElapsedTime } from "../battle";
 import { useState } from "react";
-import { formatFilterLabel } from "../questionData";
+import { formatFilterLabel, formatSeasonLabel } from "../questionData";
 import { clearHistory, loadHistory } from "../storage";
 
 type HistoryScreenProps = {
@@ -39,7 +39,7 @@ export function HistoryScreen({ onBack }: HistoryScreenProps) {
                   <p className="history-date">{new Date(item.playedAt).toLocaleString("ja-JP")}</p>
                   <h2>{winnerText}</h2>
                   <p>
-                    {formatFilterLabel(item.settings.year)} / {formatFilterLabel(item.settings.season)} /{" "}
+                    {formatFilterLabel(item.settings.year)} / {formatSeasonLabel(item.settings.season)} /{" "}
                     {formatFilterLabel(item.settings.category)} / {item.questionIds.length}問
                   </p>
                   <p>

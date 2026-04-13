@@ -3,8 +3,12 @@ import {
   categories,
   filterQuestions,
   formatFilterLabel,
+  formatSeasonLabel,
+  getAvailableSeasonsForYear,
+  getSeasonSelectionDescription,
+  isSeasonSelectionLocked,
+  normalizeSeasonForYear,
   questions,
-  seasonOptions,
   yearOptions,
 } from "../questionData";
 import type { BattleSettings } from "../types";
@@ -32,12 +36,17 @@ export function OnlineCreateRoomScreen({
 }: OnlineCreateRoomScreenProps) {
   const [playerName, setPlayerName] = useState(defaultPlayerName);
   const [year, setYear] = useState<BattleSettings["year"]>(defaultSettings.year);
-  const [season, setSeason] = useState<BattleSettings["season"]>(defaultSettings.season);
+  const [season, setSeason] = useState<BattleSettings["season"]>(
+    normalizeSeasonForYear(defaultSettings.year, defaultSettings.season),
+  );
   const [category, setCategory] = useState<BattleSettings["category"]>(defaultSettings.category);
   const [questionCount, setQuestionCount] = useState(defaultSettings.questionCount);
   const [questionOrder, setQuestionOrder] = useState<BattleSettings["questionOrder"]>(
     defaultSettings.questionOrder,
   );
+  const availableSeasons = useMemo(() => getAvailableSeasonsForYear(year), [year]);
+  const isSeasonLocked = useMemo(() => isSeasonSelectionLocked(year), [year]);
+  const seasonDescription = useMemo(() => getSeasonSelectionDescription(year), [year]);
 
   const maxCount = useMemo(() => {
     return filterQuestions(questions, { year, season, category }).length;
@@ -56,9 +65,11 @@ export function OnlineCreateRoomScreen({
   const isCountAdjusted = maxCount > 0 && questionCount > maxCount;
 
   const getCount = (filters: Partial<Pick<BattleSettings, "year" | "season" | "category">>) => {
+    const nextYear = filters.year ?? year;
+    const nextSeason = normalizeSeasonForYear(nextYear, filters.season ?? season);
     return filterQuestions(questions, {
-      year: filters.year ?? year,
-      season: filters.season ?? season,
+      year: nextYear,
+      season: nextSeason,
       category: filters.category ?? category,
     }).length;
   };
@@ -103,7 +114,14 @@ export function OnlineCreateRoomScreen({
 
         <label>
           年度
-          <select value={year} onChange={(event) => setYear(event.target.value as BattleSettings["year"])}>
+          <select
+            value={year}
+            onChange={(event) => {
+              const nextYear = event.target.value as BattleSettings["year"];
+              setYear(nextYear);
+              setSeason((currentSeason) => normalizeSeasonForYear(nextYear, currentSeason));
+            }}
+          >
             {yearOptions.map((item) => (
               <option key={item} value={item}>
                 {formatFilterLabel(item)}（{getCount({ year: item })}問）
@@ -116,15 +134,18 @@ export function OnlineCreateRoomScreen({
           期
           <select
             value={season}
+            disabled={isSeasonLocked}
             onChange={(event) => setSeason(event.target.value as BattleSettings["season"])}
           >
-            {seasonOptions.map((item) => (
+            {availableSeasons.map((item) => (
               <option key={item} value={item}>
-                {formatFilterLabel(item)}（{getCount({ season: item })}問）
+                {formatSeasonLabel(item)}（{getCount({ season: item })}問）
               </option>
             ))}
           </select>
         </label>
+
+        {seasonDescription && <p className="form-message">{seasonDescription}</p>}
 
         <label>
           分野
